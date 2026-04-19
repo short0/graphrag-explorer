@@ -32,6 +32,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PRESETS, getPreset, type PresetQuestion } from "@/data/presets";
 import { usePlayground } from "@/store/playground";
+import { chatGraphRAG } from "@/utils/chat.functions";
 
 const search = z.object({
   preset: fallback(z.string(), "").default(""),
@@ -159,7 +160,7 @@ function PlaygroundPage() {
       {
         askedQuestionId: null,
         customAnswered: true,
-        customAnswer: "",
+        customAnswer: "Thinking…",
         recentQuestions: [q, ...present.recentQuestions.filter((r) => r !== q)].slice(0, 10),
       },
       { trackHistory: false },
@@ -167,66 +168,25 @@ function PlaygroundPage() {
     try {
       const subgraph = {
         nodes: preset.nodes.map((n) => ({ id: n.id, label: n.label, type: n.type })),
-        edges: preset.edges.map((e) => ({ source: e.source, target: e.target, label: e.label })),
+        edges: preset.edges.map((e) => ({
+          source: e.source,
+          target: e.target,
+          label: e.label,
+        })),
       };
-      const resp = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, subgraph, presetTitle: preset.title }),
+      const result = await chatGraphRAG({
+        data: { question: q, subgraph, presetTitle: preset.title },
       });
-      if (resp.status === 402) {
-        toast.error("Lovable AI credits exhausted. Add credits in Settings → Workspace → Usage.");
-        store.apply({ customAnswer: "[Credits required to use Live LLM.]" }, { trackHistory: false });
-        setLoading(false);
-        return;
-      }
-      if (resp.status === 429) {
-        toast.error("Rate limit reached — please wait and try again.");
-        store.apply({ customAnswer: "[Rate limit reached.]" }, { trackHistory: false });
-        setLoading(false);
-        return;
-      }
-      if (!resp.ok || !resp.body) {
-        toast.error("Live LLM request failed.");
-        setLoading(false);
-        return;
-      }
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let answerSoFar = "";
-      let done = false;
-      while (!done) {
-        const { value, done: d } = await reader.read();
-        if (d) break;
-        textBuffer += decoder.decode(value, { stream: true });
-        let idx: number;
-        while ((idx = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, idx);
-          textBuffer = textBuffer.slice(idx + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6).trim();
-          if (data === "[DONE]") {
-            done = true;
-            break;
-          }
-          try {
-            const parsed = JSON.parse(data);
-            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (delta) {
-              answerSoFar += delta;
-              store.apply({ customAnswer: answerSoFar }, { trackHistory: false });
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
-        }
+      if (result.error) {
+        toast.error(result.error);
+        store.apply({ customAnswer: `[${result.error}]` }, { trackHistory: false });
+      } else {
+        store.apply({ customAnswer: result.answer ?? "" }, { trackHistory: false });
       }
     } catch (e) {
       console.error(e);
       toast.error("Network error contacting Live LLM.");
+      store.apply({ customAnswer: "[Network error]" }, { trackHistory: false });
     } finally {
       setLoading(false);
     }
