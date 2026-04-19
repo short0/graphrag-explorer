@@ -44,6 +44,12 @@ export const Route = createRootRoute({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "GraphRAG Playground" },
+      { name: "description", content: "Explore GraphRAG and graph databases with LLMs through interactive demos and a hands-on sandbox." },
+      { property: "og:description", content: "Explore GraphRAG and graph databases with LLMs through interactive demos and a hands-on sandbox." },
+      { name: "twitter:description", content: "Explore GraphRAG and graph databases with LLMs through interactive demos and a hands-on sandbox." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e861f161-2e13-463d-bad5-19f440a0358b/id-preview-a73b3de7--0b7afc28-4b30-48e9-969b-a7ff60024971.lovable.app-1776588122048.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e861f161-2e13-463d-bad5-19f440a0358b/id-preview-a73b3de7--0b7afc28-4b30-48e9-969b-a7ff60024971.lovable.app-1776588122048.png" },
     ],
     links: [
       {
